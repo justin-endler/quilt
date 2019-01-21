@@ -13,12 +13,7 @@ export default class List<Fields> extends React.Component<
   Props<Fields>,
   never
 > {
-  private changeHandlers = new Map<number, {(newValue: any): void}>();
-
-  constructor(props) {
-    super(props);
-    this.handleChange = this.handleChange.bind(this);
-  }
+  private changeHandlers = new Map<string, {(newValue: any): void}>();
 
   shouldComponentUpdate(nextProps) {
     const {
@@ -57,7 +52,7 @@ export default class List<Fields> extends React.Component<
             name: `${name}.${index}.${fieldPath}`,
             initialValue: initialFieldValue,
             dirty: value !== initialFieldValue,
-            error: error[index][fieldPath],
+            error: error && error[index] && error[index][fieldPath],
             onChange: this.handleChange({index, key: fieldPath}),
           };
         },
@@ -74,15 +69,16 @@ export default class List<Fields> extends React.Component<
     });
   }
 
-  private handleChange<Key extends keyof Fields>({
+  private handleChange = <Key extends keyof Fields>({
     index,
     key,
   }: {
     index: number;
     key: Key;
-  }) {
-    if (this.changeHandlers.has(index)) {
-      return this.changeHandlers.get(index);
+  }) => {
+    const hashKey = `${index}:${key}`;
+    if (this.changeHandlers.has(hashKey)) {
+      return this.changeHandlers.get(hashKey);
     }
     const handler = (newValue: Fields[Key] | ValueMapper<Fields[Key]>) => {
       const {
@@ -101,7 +97,7 @@ export default class List<Fields> extends React.Component<
         return replace(value, index, newItem);
       });
     };
-    this.changeHandlers.set(index, handler);
+    this.changeHandlers.set(hashKey, handler);
     return handler;
-  }
+  };
 }

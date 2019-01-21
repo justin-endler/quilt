@@ -2,7 +2,7 @@ export function mapObject<Input, Output>(
   input: Input,
   mapper: (value: any, key: keyof Input) => any,
 ) {
-  return Object.values(input).reduce((accumulator: any, [key, value]) => {
+  return Object.entries(input).reduce((accumulator: any, [key, value]) => {
     accumulator[key] = mapper(value, key as keyof Input);
     return accumulator;
   }, {}) as Output;
@@ -58,7 +58,7 @@ export function isEqual(value, baseline) {
     if (value.length !== baseline.length) {
       return false;
     }
-    for (const iter of value) {
+    for (let iter = 0; iter < value.length; iter++) {
       if (!isEqual(value[iter], baseline[iter])) {
         return false;
       }

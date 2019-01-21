@@ -14,11 +14,6 @@ export default class Nested<Fields> extends React.Component<
 > {
   private changeHandlers = new Map<keyof Fields, Function>();
 
-  constructor(props) {
-    super(props);
-    this.handleChange = this.handleChange.bind(this);
-  }
-
   shouldComponentUpdate(nextProps) {
     const {
       field: {
@@ -54,7 +49,7 @@ export default class Nested<Fields> extends React.Component<
           name: `${name}.${fieldPath}`,
           initialValue: initialFieldValue,
           dirty: value !== initialFieldValue,
-          error: error[fieldPath],
+          error: error && error[fieldPath],
           onChange: this.handleChange(fieldPath),
         };
       },
@@ -63,7 +58,7 @@ export default class Nested<Fields> extends React.Component<
     return children(innerFields);
   }
 
-  private handleChange<Key extends keyof Fields>(key: Key) {
+  private handleChange = <Key extends keyof Fields>(key: Key) => {
     if (this.changeHandlers.has(key)) {
       return this.changeHandlers.get(key);
     }
@@ -84,5 +79,5 @@ export default class Nested<Fields> extends React.Component<
     };
     this.changeHandlers.set(key, handler);
     return handler;
-  }
+  };
 }

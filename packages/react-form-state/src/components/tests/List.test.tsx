@@ -8,7 +8,7 @@ import {lastCallArgs} from '../../tests/utilities';
 import FormState from '../..';
 
 describe('<FormState.List />', () => {
-  it('passes form state into child function for each index of the given array', () => {
+  it.only('passes form state into child function for each index of the given array', () => {
     const renderPropSpy = jest.fn(() => null);
 
     const products = [

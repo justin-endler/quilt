@@ -89,17 +89,7 @@ export default class FormState<
 
   state = createFormState(this.props.initialValues);
   private mounted = false;
-  private fieldHandlers = new Map<
-    keyof Fields,
-    {onChange(newValue: any): void; onBlur(): void}
-  >();
-
-  constructor(props) {
-    super(props);
-    this.reset = this.reset.bind(this);
-    this.submit = this.submit.bind(this);
-    this.fieldWithHandlers = this.fieldWithHandlers.bind(this);
-  }
+  private fieldsWithHandlers = new Map<string, any>();
 
   componentDidMount() {
     this.mounted = true;
@@ -140,14 +130,14 @@ export default class FormState<
     });
   }
 
-  public reset() {
+  public reset = () => {
     return new Promise(resolve => {
       this.setState(
         (_state, props) => createFormState(props.initialValues),
         () => resolve(),
       );
     });
-  }
+  };
 
   private get dirty() {
     return this.state.dirtyFields.length > 0;
@@ -178,7 +168,7 @@ export default class FormState<
     return fieldDescriptors;
   }
 
-  private async submit(event?: Event) {
+  private submit = async (event?: Event) => {
     const {onSubmit, validateOnSubmit} = this.props;
     const {formData} = this;
 
@@ -217,29 +207,31 @@ export default class FormState<
     } else {
       this.setState({submitting: false, errors});
     }
-  }
+  };
 
-  private fieldWithHandlers<Key extends keyof Fields>(
+  private fieldWithHandlers = <Key extends keyof Fields>(
     field: FieldStates<Fields>[Key],
-    fieldPath: Key,
-  ) {
-    let handlers: {onChange(newValue: any): void; onBlur(): void};
-    if (this.fieldHandlers.has(fieldPath)) {
+    fieldPath: string & Key,
+  ) => {
+    const hashKey = `${fieldPath}:${JSON.stringify(field)}`;
+    let ret: FieldState<Fields[Key]> & {name: Key} & {
+      onChange(newValue: any): void;
+      onBlur(): void;
+    };
+    if (this.fieldsWithHandlers.has(hashKey)) {
       // eslint-disable-next-line typescript/no-non-null-assertion
-      handlers = this.fieldHandlers.get(fieldPath)!;
+      ret = this.fieldsWithHandlers.get(hashKey)!;
     } else {
-      handlers = {
+      ret = {
+        ...(field as FieldState<Fields[Key]>),
+        name: fieldPath,
         onChange: this.updateField.bind(this, fieldPath),
         onBlur: this.blurField.bind(this, fieldPath),
       };
-      this.fieldHandlers.set(fieldPath, handlers);
+      this.fieldsWithHandlers.set(hashKey, ret);
     }
-    return {
-      ...(field as FieldState<Fields[Key]>),
-      name: fieldPath,
-      ...handlers,
-    };
-  }
+    return ret;
+  };
 
   private updateField<Key extends keyof Fields>(
     fieldPath: Key,
