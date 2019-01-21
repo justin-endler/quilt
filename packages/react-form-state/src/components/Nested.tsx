@@ -1,6 +1,4 @@
 import * as React from 'react';
-import get from 'lodash/get';
-import {memoize, bind} from 'lodash-decorators';
 
 import {FieldDescriptor, FieldDescriptors, ValueMapper} from '../types';
 import {mapObject} from '../utilities';
@@ -14,6 +12,13 @@ export default class Nested<Fields> extends React.Component<
   Props<Fields>,
   never
 > {
+  private changeHandlers = new Map<keyof Fields, Function>();
+
+  constructor(props) {
+    super(props);
+    this.handleChange = this.handleChange.bind(this);
+  }
+
   shouldComponentUpdate(nextProps) {
     const {
       field: {
@@ -49,7 +54,7 @@ export default class Nested<Fields> extends React.Component<
           name: `${name}.${fieldPath}`,
           initialValue: initialFieldValue,
           dirty: value !== initialFieldValue,
-          error: get(error, fieldPath),
+          error: error[fieldPath],
           onChange: this.handleChange(fieldPath),
         };
       },
@@ -58,10 +63,11 @@ export default class Nested<Fields> extends React.Component<
     return children(innerFields);
   }
 
-  @memoize()
-  @bind()
   private handleChange<Key extends keyof Fields>(key: Key) {
-    return (newValue: Fields[Key] | ValueMapper<Fields>) => {
+    if (this.changeHandlers.has(key)) {
+      return this.changeHandlers.get(key);
+    }
+    const handler = (newValue: Fields[Key] | ValueMapper<Fields>) => {
       const {
         field: {onChange},
       } = this.props;
@@ -71,10 +77,12 @@ export default class Nested<Fields> extends React.Component<
           ...(value as any),
           [key]:
             typeof newValue === 'function'
-              ? newValue(value[key as string])
+              ? (newValue as Function)(value[key as string])
               : newValue,
         };
       });
     };
+    this.changeHandlers.set(key, handler);
+    return handler;
   }
 }

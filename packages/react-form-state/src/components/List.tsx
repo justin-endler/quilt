@@ -1,6 +1,4 @@
 import * as React from 'react';
-import get from 'lodash/get';
-import {memoize, bind} from 'lodash-decorators';
 
 import {FieldDescriptor, FieldDescriptors, ValueMapper} from '../types';
 import {mapObject, replace} from '../utilities';
@@ -15,6 +13,13 @@ export default class List<Fields> extends React.Component<
   Props<Fields>,
   never
 > {
+  private changeHandlers = new Map<number, {(newValue: any): void}>();
+
+  constructor(props) {
+    super(props);
+    this.handleChange = this.handleChange.bind(this);
+  }
+
   shouldComponentUpdate(nextProps) {
     const {
       field: {
@@ -45,14 +50,14 @@ export default class List<Fields> extends React.Component<
       const innerFields: FieldDescriptors<Fields> = mapObject(
         fieldValues,
         (value, fieldPath) => {
-          const initialFieldValue = get(initialValue, [index, fieldPath]);
+          const initialFieldValue = initialValue[index][fieldPath];
           return {
             value,
             onBlur,
             name: `${name}.${index}.${fieldPath}`,
             initialValue: initialFieldValue,
             dirty: value !== initialFieldValue,
-            error: get(error, [index, fieldPath]),
+            error: error[index][fieldPath],
             onChange: this.handleChange({index, key: fieldPath}),
           };
         },
@@ -69,8 +74,6 @@ export default class List<Fields> extends React.Component<
     });
   }
 
-  @memoize()
-  @bind()
   private handleChange<Key extends keyof Fields>({
     index,
     key,
@@ -78,7 +81,10 @@ export default class List<Fields> extends React.Component<
     index: number;
     key: Key;
   }) {
-    return (newValue: Fields[Key] | ValueMapper<Fields[Key]>) => {
+    if (this.changeHandlers.has(index)) {
+      return this.changeHandlers.get(index);
+    }
+    const handler = (newValue: Fields[Key] | ValueMapper<Fields[Key]>) => {
       const {
         field: {onChange},
       } = this.props;
@@ -95,5 +101,7 @@ export default class List<Fields> extends React.Component<
         return replace(value, index, newItem);
       });
     };
+    this.changeHandlers.set(index, handler);
+    return handler;
   }
 }

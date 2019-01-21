@@ -1,11 +1,7 @@
 /* eslint-disable no-case-declarations */
 import * as React from 'react';
-import isEqual from 'lodash/isEqual';
-import isArray from 'lodash/isArray';
-import set from 'lodash/set';
-import {memoize, bind} from 'lodash-decorators';
 
-import {mapObject} from './utilities';
+import {mapObject, set, isEqual} from './utilities';
 import {
   FieldDescriptors,
   FieldState,
@@ -93,6 +89,17 @@ export default class FormState<
 
   state = createFormState(this.props.initialValues);
   private mounted = false;
+  private fieldHandlers = new Map<
+    keyof Fields,
+    {onChange(newValue: any): void; onBlur(): void}
+  >();
+
+  constructor(props) {
+    super(props);
+    this.reset = this.reset.bind(this);
+    this.submit = this.submit.bind(this);
+    this.fieldWithHandlers = this.fieldWithHandlers.bind(this);
+  }
 
   componentDidMount() {
     this.mounted = true;
@@ -133,7 +140,6 @@ export default class FormState<
     });
   }
 
-  @bind()
   public reset() {
     return new Promise(resolve => {
       this.setState(
@@ -172,7 +178,6 @@ export default class FormState<
     return fieldDescriptors;
   }
 
-  @bind()
   private async submit(event?: Event) {
     const {onSubmit, validateOnSubmit} = this.props;
     const {formData} = this;
@@ -214,17 +219,25 @@ export default class FormState<
     }
   }
 
-  @memoize()
-  @bind()
   private fieldWithHandlers<Key extends keyof Fields>(
     field: FieldStates<Fields>[Key],
     fieldPath: Key,
   ) {
+    let handlers: {onChange(newValue: any): void; onBlur(): void};
+    if (this.fieldHandlers.has(fieldPath)) {
+      // eslint-disable-next-line typescript/no-non-null-assertion
+      handlers = this.fieldHandlers.get(fieldPath)!;
+    } else {
+      handlers = {
+        onChange: this.updateField.bind(this, fieldPath),
+        onBlur: this.blurField.bind(this, fieldPath),
+      };
+      this.fieldHandlers.set(fieldPath, handlers);
+    }
     return {
       ...(field as FieldState<Fields[Key]>),
       name: fieldPath,
-      onChange: this.updateField.bind(this, fieldPath),
-      onBlur: this.blurField.bind(this, fieldPath),
+      ...handlers,
     };
   }
 
@@ -446,7 +459,7 @@ function runValidator<T, F>(
     return validate(value, fields);
   }
 
-  if (!isArray(validate)) {
+  if (!Array.isArray(validate)) {
     // eslint-disable-next-line consistent-return
     return;
   }
